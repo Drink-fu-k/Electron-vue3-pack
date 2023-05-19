@@ -1,13 +1,8 @@
-import { BrowserWindow, ipcMain, WebContentsPrintOptions } from "electron";
-import { IsUseSysTitle } from "../config/const";
-import { otherWindowConfig } from "../config/windowsConfig";
-import { printURL } from "@main/config/StaticPath";
-
+import { BrowserWindow, ipcMain } from "electron";
+import { notificationFn, clientSSH } from "@main/utils/index"
 import shell from 'shelljs';
-import ssh2 from 'ssh2';
 import archiver from 'archiver';
 import fs from 'fs'
-
 
 const buildFunc = (res, mainWindow) => {
   let { remoteName, localPath } = res
@@ -18,13 +13,13 @@ const buildFunc = (res, mainWindow) => {
   archive.finalize();
   mainWindow.webContents.send('pipMsg', '压缩完成')
   mainWindow.webContents.send('packMsg', true)
+  notificationFn("提示", '打包完成');
 }
 
 const Shell = async (mainWindow, res, remoteConfig) => {
-  const conn = new ssh2.Client();
   let { remotePath, remoteName } = res
-  mainWindow.webContents.send('pipMsg', '解压缩')
-  conn.on('ready', async function () {
+  clientSSH(remoteConfig, conn => {
+    mainWindow.webContents.send('pipMsg', '解压缩')
     conn.shell(function (err, stream) {
       if (err) return mainWindow.webContents.send('pipMsg', '上传失败' + err)
       stream.write(`sudo -i\r\n`);
@@ -43,19 +38,18 @@ const Shell = async (mainWindow, res, remoteConfig) => {
       stream.on('close', function (code, signal) {
         mainWindow.webContents.send('pipMsg', `${code == 0 ? '上传成功' : '上传失败'}`)
         mainWindow.webContents.send('packMsg', code == 0)
+        notificationFn("提示", `${code == 0 ? '上传成功' : '上传失败'}`);
         conn.end()
       });
     })
-
-  }).connect(remoteConfig);
+  })
 
 }
 
 const startSSH = async (project, remoteConfig, mainWindow) => {
   let { remoteName, localPath } = project
-  const conn = new ssh2.Client();
   if (!remoteConfig) return (mainWindow.webContents.send('pipMsg', '请配置服务器信息'), mainWindow.webContents.send('packMsg', false))
-  conn.on('ready', async function () {
+  clientSSH(remoteConfig, conn => {
     mainWindow.webContents.send('pipMsg', '连接成功')
     mainWindow.webContents.send('pipMsg', '上传中....')
     const zip = `${localPath}/${remoteName}.tar` // 本地压缩包地址
@@ -72,38 +66,13 @@ const startSSH = async (project, remoteConfig, mainWindow) => {
         Shell(mainWindow, project, remoteConfig)
       })
     })
-
-  }).connect(remoteConfig);
+  })
 }
 
 
 export function usePrintHandle() {
-  ipcMain.handle("getPrinters", async (event) => {
-    return await event.sender.getPrintersAsync();
-  });
-
-  ipcMain.handle(
-    "printHandlePrint",
-    async (event, options: WebContentsPrintOptions) => {
-      return new Promise((resolve) => {
-        event.sender.print(
-          options,
-          (success: boolean, failureReason: string) => {
-            resolve({ success, failureReason });
-          }
-        );
-      });
-    }
-  );
-
-  ipcMain.handle("openPrintDemoWindow", () => {
-    openPrintDemoWindow();
-  });
-
-
   ipcMain.handle("pack", (event, res) => {
     let mainWindow = BrowserWindow.fromWebContents(event.sender)
-    // database.hasProject({ _id }, async (res) => {
     res = JSON.parse(res);
     let { localPath, command } = res;
     const workerProcess = shell.exec(command, { cwd: localPath, async: true });
@@ -120,36 +89,12 @@ export function usePrintHandle() {
       mainWindow.webContents.send('pipMsg', '打包完成')
       buildFunc(res, mainWindow);
     })
-    // })
   });
 
   ipcMain.handle("public", (event, project, ssh) => {
     let mainWindow = BrowserWindow.fromWebContents(event.sender)
-    // database.hasProject({ _id }, res => )
     project = JSON.parse(project);
     ssh = JSON.parse(ssh);
     startSSH(project, ssh, mainWindow)
-  });
-
-
-
-}
-
-let win: BrowserWindow;
-export function openPrintDemoWindow() {
-  if (win) {
-    win.show();
-    return;
-  }
-  win = new BrowserWindow({
-    titleBarStyle: IsUseSysTitle ? "default" : "hidden",
-    ...Object.assign(otherWindowConfig, {}),
-  });
-  win.loadURL(printURL);
-  win.on("ready-to-show", () => {
-    win.show();
-  });
-  win.on("closed", () => {
-    win = null;
   });
 }

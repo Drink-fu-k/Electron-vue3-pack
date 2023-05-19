@@ -48,6 +48,7 @@
         <el-form-item label="选择环境" prop="type">
           <el-select v-model="sshForm.type" class="width-full" placeholder="请选择">
             <el-option label="测试环境" value="0" />
+            <el-option label="正式环境" value="1" />
           </el-select>
         </el-form-item>
         <el-form-item label="跳板机" prop="host">
@@ -94,39 +95,12 @@
 </template>
 
 <script setup lang="ts">
-import SystemInformation from "./LandingPage/SystemInformation.vue";
-import UpdateProgress from "./updataProgress/index.vue";
-import { message } from "@renderer/api/login";
-import logo from "@renderer/assets/logo.png";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getProject, addProject, deleteProject, hasProject } from "@renderer/db/projectdb";
 import { getsshInfo, deleteSSH, addSSH, hasSshInfo } from "@renderer/db/sshdb";
-import { onUnmounted, Ref, ref, computed, reactive, onMounted } from "vue";
-import { i18n, setLanguage } from "@renderer/i18n";
-import { useI18n } from "vue-i18n";
-
-import { useTemplateStore } from "@renderer/store/modules/template";
-import TitleBar from "./common/TitleBar.vue";
-
-const storeTemplate = useTemplateStore();
-
-const { t } = useI18n();
-
-console.log(`storeTemplate`, storeTemplate.getTest);
-console.log(`storeTemplate`, storeTemplate.getTest1);
-console.log(`storeTemplate`, storeTemplate.$state.testData);
-console.log(__CONFIG__)
-
-setTimeout(() => {
-  storeTemplate.TEST_ACTION("654321");
-  console.log(`storeTemplate`, storeTemplate.getTest1);
-}, 1000);
+import { onUnmounted, ref, computed, reactive, onMounted } from "vue";
 
 const { ipcRenderer, shell } = require("electron");
-
-
-
-
 const ruleFormRef = ref()
 const tableData = ref([])
 const dialogFormVisible = ref(false);
@@ -246,237 +220,14 @@ const dialogVisible = computed({
   }
 })
 
-
-
-
-
-let percentage = ref(0);
-let colors: Ref<ColorInfo[]> | Ref<string> = ref([
-  { color: "#f56c6c", percentage: 20 },
-  { color: "#e6a23c", percentage: 40 },
-  { color: "#6f7ad3", percentage: 60 },
-  { color: "#1989fa", percentage: 80 },
-  { color: "#5cb87a", percentage: 100 },
-]);
-
-let progressStaus = ref(null);
-let showForcedUpdate = ref(false);
-let filePath = ref("");
-let updateStatus = ref("");
-
-let elPageSize = ref(100);
-let elCPage = ref(1);
-
-ipcRenderer.invoke("get-static-path").then((res) => {
-  console.log("staticPath", res);
-});
-
-function changeLanguage() {
-  setLanguage(i18n.global.locale.value === "zh-cn" ? "en" : "zh-cn");
-}
-
-function printDemo() {
-  ipcRenderer.invoke("openPrintDemoWindow");
-}
-
-function handleSizeChange(val: number) {
-  elPageSize.value = val;
-}
-
-function handleCurrentChange(val: number) {
-  elCPage.value = val;
-}
-
-function crash() {
-  process.crash();
-}
-
-function openNewWin() {
-  let data = {
-    url: "/form/index",
-  };
-  ipcRenderer.invoke("open-win", data);
-}
-function getMessage() {
-  message().then((res) => {
-    ElMessageBox.alert(res.data, "提示", {
-      confirmButtonText: "确定",
-    });
-  });
-}
-function StopServer() {
-  ipcRenderer.invoke("stop-server").then((res) => {
-    ElMessage({
-      type: "success",
-      message: "已关闭",
-    });
-  });
-}
-function StartServer() {
-  ipcRenderer.invoke("start-server").then((res) => {
-    if (res) {
-      ElMessage({
-        type: "success",
-        message: res,
-      });
-    }
-  });
-}
-// 获取electron方法
-function open() { }
-function CheckUpdate(data) {
-  switch (data) {
-    case "one":
-      ipcRenderer.invoke("check-update");
-      break;
-    case "two":
-      // TODO 测试链接
-      console.log('test Url')
-      // ipcRenderer
-      //   .invoke(
-      //     "start-download",
-      //     "https://az764295.vo.msecnd.net/stable/6261075646f055b99068d3688932416f2346dd3b/VSCodeUserSetup-x64-1.73.1.exe"
-      //   )
-      //   .then(() => {
-      //     dialogVisible.value = true;
-      //   });
-      break;
-    case "three":
-      ipcRenderer.invoke("hot-update");
-      break;
-    case "threetest":
-      alert("更新后再次点击没有提示");
-      ipcRenderer.invoke("hot-update-test");
-      break;
-    case "four":
-      showForcedUpdate.value = true;
-      break;
-    default:
-      break;
-  }
-}
-function openPreloadWindow() {
-  ElMessageBox.alert(t("home.openPreloadWindowError.content"), t("home.openPreloadWindowError.title"), {
-    confirmButtonText: t("home.openPreloadWindowError.confirm"),
-    callback: (action) => { },
-  });
-}
-
-function handleClose() {
-  dialogVisible.value = false;
-}
-ipcRenderer.on("download-progress", (event, arg) => {
-  console.log(arg);
-  percentage.value = Number(arg);
-});
-ipcRenderer.on("download-error", (event, arg) => {
-  if (arg) {
-    progressStaus = "exception";
-    percentage.value = 40;
-    colors.value = "#d81e06";
-  }
-});
-ipcRenderer.on("download-paused", (event, arg) => {
-  if (arg) {
-    progressStaus = "warning";
-    ElMessageBox.alert("下载由于未知原因被中断！", "提示", {
-      confirmButtonText: "重试",
-      callback: (action) => {
-        ipcRenderer.invoke("start-download");
-      },
-    });
-  }
-});
-ipcRenderer.on("download-done", (event, age) => {
-  filePath.value = age.filePath;
-  progressStaus = "success";
-  ElMessageBox.alert("更新下载完成！", "提示", {
-    confirmButtonText: "确定",
-    callback: (action) => {
-      shell.openPath(filePath.value);
-    },
-  });
-});
-// electron-updater的更新监听
-ipcRenderer.on("UpdateMsg", (event, age) => {
-  switch (age.state) {
-    case -1:
-      const msgdata = {
-        title: "发生错误",
-        message: age.msg,
-      };
-      dialogVisible.value = false;
-      ipcRenderer.invoke("open-errorbox", msgdata);
-      break;
-    case 0:
-      ElMessage("正在检查更新");
-      break;
-    case 1:
-      ElMessage({
-        type: "success",
-        message: "已检查到新版本，开始下载",
-      });
-      dialogVisible.value = true;
-      break;
-    case 2:
-      ElMessage({ type: "success", message: "无新版本" });
-      break;
-    case 3:
-      percentage = age.msg.percent.toFixed(1);
-      break;
-    case 4:
-      progressStaus = "success";
-      ElMessageBox.alert("更新下载完成！", "提示", {
-        confirmButtonText: "确定",
-        callback: (action) => {
-          ipcRenderer.invoke("confirm-update");
-        },
-      });
-      break;
-    default:
-      break;
-  }
-});
-ipcRenderer.on("hot-update-status", (event, msg) => {
-  switch (msg.status) {
-    case "downloading":
-      ElMessage("正在下载");
-      break;
-    case "moving":
-      ElMessage("正在移动文件");
-      break;
-    case "finished":
-      ElMessage.success("成功,请重启");
-      break;
-    case "failed":
-      ElMessage.error(msg.message.message);
-      break;
-
-    default:
-      break;
-  }
-  console.log(msg);
-  updateStatus = msg.status;
-});
 onMounted(() => {
   getProjectList()
   getSSHInfoList()
 })
 
-onUnmounted(() => {
-  console.log("销毁了哦");
-  ipcRenderer.removeAllListeners("confirm-message");
-  ipcRenderer.removeAllListeners("download-done");
-  ipcRenderer.removeAllListeners("download-paused");
-  ipcRenderer.removeAllListeners("confirm-stop");
-  ipcRenderer.removeAllListeners("confirm-start");
-  ipcRenderer.removeAllListeners("confirm-download");
-  ipcRenderer.removeAllListeners("download-progress");
-  ipcRenderer.removeAllListeners("download-error");
-});
 </script>
 
-<style>
+<style lang="scss">
 * {
   box-sizing: border-box;
   margin: 0;
@@ -489,6 +240,7 @@ onUnmounted(() => {
 
 .el-drawer__header {
   margin-bottom: 0;
+  padding-top: 0;
 }
 
 body {
@@ -497,65 +249,5 @@ body {
 
 #wrapper {
   padding: 114px 80px;
-}
-
-#logo {
-  height: auto;
-  margin-bottom: 20px;
-  width: 420px;
-}
-
-main {
-  display: flex;
-  justify-content: space-between;
-}
-
-main>div {
-  flex-basis: 50%;
-}
-
-.left-side {
-  display: flex;
-  flex-direction: column;
-}
-
-.welcome {
-  color: #555;
-  font-size: 23px;
-  margin-bottom: 10px;
-}
-
-.title {
-  color: #2c3e50;
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 6px;
-}
-
-.title.alt {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.doc {
-  margin-bottom: 10px;
-}
-
-.doc p {
-  color: black;
-  margin-bottom: 10px;
-}
-
-.doc .el-button {
-  margin-top: 10px;
-  margin-right: 10px;
-}
-
-.doc .el-button+.el-button {
-  margin-left: 0;
-}
-
-.conten {
-  text-align: center;
 }
 </style>

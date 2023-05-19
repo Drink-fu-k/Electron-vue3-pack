@@ -14,18 +14,6 @@ class MainInit {
   constructor() {
     this.winURL = winURL;
     this.shartURL = loadingURL;
-    if (process.env.NODE_ENV === "development") {
-      menuconfig.push({
-        label: "开发者设置",
-        submenu: [
-          {
-            label: "切换到开发者模式",
-            accelerator: "CmdOrCtrl+I",
-            role: "toggledevtools",
-          },
-        ],
-      });
-    }
     // 启用协议
     setIpc.Mainfunc();
   }

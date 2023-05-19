@@ -1,5 +1,5 @@
 export const UseStartupChart: boolean = true;
-export const IsUseSysTitle: boolean = false;
+export const IsUseSysTitle: boolean = true;
 export const BuiltInServerPort: number = 25565;
 export const hotPublishUrl: string =
   "http://umbrella22.github.io/electron-vite-template";

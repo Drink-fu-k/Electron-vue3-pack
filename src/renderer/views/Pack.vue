@@ -1,15 +1,16 @@
 <template>
   <div class="print column pd_50">
     <el-card>
+      <el-backtop :right="60" :bottom="60" />
       <template #header>
         <div class="card-header flex-between">
           <span>控制台输出</span>
-          <div>
+          <el-affix :offset="50">
             <el-button class="button" type="primary" :disabled="packDisabled" @click="packFn">打包</el-button>
             <el-button class="button" type="primary" :disabled="pubDisabled" @click="publishFn">发布</el-button>
             <el-button class="button" type="primary" @click="activities = []">清空控制台信息</el-button>
             <el-button class="button" type="primary" @click="$router.back()">返回</el-button>
-          </div>
+          </el-affix>
         </div>
       </template>
       <el-timeline v-loading="loading" element-loading-background="rgba(255, 255, 255, 0.1)">
@@ -17,20 +18,17 @@
           {{ activity }}
         </el-timeline-item>
       </el-timeline>
-      <el-backtop target=".page-component__scroll .el-scrollbar__wrap"></el-backtop>
     </el-card>
   </div>
 </template>
 <script lang="ts" setup>
 import { ref, onMounted, reactive } from 'vue'
-import { useRouter, useRoute } from 'vue-router';
-import { ElMessage, ElMessageBox } from "element-plus";
-import { getProject, addProject, deleteProject, hasProject } from "@renderer/db/projectdb";
-import { getsshInfo, deleteSSH, addSSH, hasSshInfo } from "@renderer/db/sshdb";
+import { useRouter } from 'vue-router';
+import { hasProject } from "@renderer/db/projectdb";
+import { getsshInfo } from "@renderer/db/sshdb";
 
 const { ipcRenderer } = require("electron")
 const router = useRouter();
-const projectId = ref('')
 const activities = ref([])
 const currentProject = reactive({});
 const currentSSHINFO = reactive({})
@@ -46,6 +44,7 @@ const publishFn = () => {
   ipcRenderer.invoke('public', project, ssh)
 }
 const packFn = () => {
+  activities.value = []
   loading.value = true;
   packDisabled.value = true;
   let project = JSON.stringify(currentProject)
@@ -53,8 +52,8 @@ const packFn = () => {
 }
 
 onMounted(async () => {
-  projectId.value = router.currentRoute.value.query.id
-  hasProject(Number(projectId.value), data => {
+  let id = router.currentRoute.value.query.id
+  hasProject(Number(id), data => {
     Object.assign(currentProject, data)
   })
   getsshInfo(data => {
@@ -69,10 +68,8 @@ onMounted(async () => {
     if (type) {
       packDisabled.value = false;
       pubDisabled.value = false
-      ElMessage.success('上传成功')
       return
     }
-    ElMessage.success('上传失败')
   })
 })
 
