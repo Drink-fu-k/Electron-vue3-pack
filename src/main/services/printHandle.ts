@@ -97,4 +97,12 @@ export function usePrintHandle() {
     ssh = JSON.parse(ssh);
     startSSH(project, ssh, mainWindow)
   });
+
+  ipcMain.handle("publicProd", (event, project, sshInfo) => {
+    let mainWindow = BrowserWindow.fromWebContents(event.sender)
+    project = JSON.parse(project);
+    Object.values(sshInfo).forEach(async ssh => {
+      await startSSH(project, ssh, mainWindow)
+    })
+  });
 }

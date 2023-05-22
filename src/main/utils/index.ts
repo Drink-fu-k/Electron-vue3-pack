@@ -22,6 +22,8 @@ export const clientSSH = (remoteConfig, func) => {
       func(conn)
     }).connect(remoteConfig);
   } catch (error) {
+    conn.end();
+    conn.dispose()
     notificationFn('提示', '请检查服务器信息')
   }
 

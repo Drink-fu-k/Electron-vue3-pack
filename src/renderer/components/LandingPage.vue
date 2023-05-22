@@ -98,7 +98,7 @@
 import { ElMessage, ElMessageBox } from "element-plus";
 import { getProject, addProject, deleteProject, hasProject } from "@renderer/db/projectdb";
 import { getsshInfo, deleteSSH, addSSH, hasSshInfo } from "@renderer/db/sshdb";
-import { onUnmounted, ref, computed, reactive, onMounted } from "vue";
+import { ref, computed, reactive, onMounted } from "vue";
 
 const { ipcRenderer, shell } = require("electron");
 const ruleFormRef = ref()

@@ -14,6 +14,16 @@ class MainInit {
   constructor() {
     this.winURL = winURL;
     this.shartURL = loadingURL;
+    menuconfig.push({
+      label: "服务器",
+      submenu: [
+        {
+          click: () => { this.mainWindow.send('openBlockSSH') },
+          label: "开启生产环境权限",
+          accelerator: "CmdOrCtrl+I",
+        },
+      ],
+    });
     // 启用协议
     setIpc.Mainfunc();
   }

@@ -7,8 +7,9 @@
           <span>控制台输出</span>
           <el-affix :offset="50">
             <el-button class="button" type="primary" :disabled="packDisabled" @click="packFn">打包</el-button>
-            <el-button class="button" type="primary" :disabled="pubDisabled" @click="publishFn">发布</el-button>
-            <el-button class="button" type="primary" @click="activities = []">清空控制台信息</el-button>
+            <el-button class="button" type="primary" :disabled="pubDisabled" @click="publishFn(0)">发布测试环境</el-button>
+            <el-button class="button" type="danger" :disabled="pubPrdDisabled" @click="publishFn(1)">发布生产环境</el-button>
+            <el-button class="button" type="primary" @click="activities = []">清空控制台</el-button>
             <el-button class="button" type="primary" @click="$router.back()">返回</el-button>
           </el-affix>
         </div>
@@ -24,6 +25,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from "element-plus";
 import { hasProject } from "@renderer/db/projectdb";
 import { getsshInfo } from "@renderer/db/sshdb";
 
@@ -34,15 +36,48 @@ const currentProject = reactive({});
 const currentSSHINFO = reactive({})
 const packDisabled = ref(false);
 const pubDisabled = ref(true);
+const pubPrdDisabled = ref(true);
 const loading = ref(false);
-const publishFn = () => {
+
+
+const publishFn = (val) => {
   loading.value = true;
   packDisabled.value = true;
   pubDisabled.value = true;
-  let ssh = JSON.stringify(currentSSHINFO)
   let project = JSON.stringify(currentProject)
-  ipcRenderer.invoke('public', project, ssh)
+  if (val === 1) {
+    // 正式环境发布
+    ElMessageBox.confirm('确定发布正式环境吗？', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+      .then(() => {
+        getsshInfo(data => {
+          let ssh = data.filter(item => item.type == 1) // 正式环境
+          if (ssh.length < 2) {
+            ElMessageBox.alert('请完善生产环境服务器信息');
+            [loading, packDisabled, pubDisabled].forEach(key => {
+              key.value = false
+            })
+            return
+          }
+          let sshInfo = {}
+          ssh.forEach((item, index) => sshInfo[index] = item)
+          ipcRenderer.invoke('publicProd', project, sshInfo)
+        })
+      }).catch(() => {
+        [loading, packDisabled, pubDisabled].forEach(key => {
+          key.value = false
+        })
+      })
+  } else {
+    // 测试环境发布
+    let ssh = JSON.stringify(currentSSHINFO)
+    ipcRenderer.invoke('public', project, ssh)
+  }
 }
+
 const packFn = () => {
   activities.value = []
   loading.value = true;
@@ -60,6 +95,9 @@ onMounted(async () => {
     let obj = data.find(item => item.type == 0) // 测试环境
     Object.assign(currentSSHINFO, obj)
   })
+  ipcRenderer.on('openBlockSSH', () => {
+    if (!pubDisabled.value) pubPrdDisabled.value = false;
+  })
   ipcRenderer.on('pipMsg', (e, msg) => {
     activities.value.push(msg);
   })
@@ -67,7 +105,8 @@ onMounted(async () => {
     loading.value = false;
     if (type) {
       packDisabled.value = false;
-      pubDisabled.value = false
+      pubDisabled.value = true;
+      pubPrdDisabled.value = true;
       return
     }
   })
