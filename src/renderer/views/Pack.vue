@@ -46,6 +46,7 @@ const publishFn = (val) => {
   pubDisabled.value = true;
   let project = JSON.stringify(currentProject)
   if (val === 1) {
+    pubPrdDisabled.value = true
     // 正式环境发布
     ElMessageBox.confirm('确定发布正式环境吗？', {
       confirmButtonText: '确定',
@@ -105,7 +106,7 @@ onMounted(async () => {
     loading.value = false;
     if (type) {
       packDisabled.value = false;
-      pubDisabled.value = true;
+      pubDisabled.value = false;
       pubPrdDisabled.value = true;
       return
     }
