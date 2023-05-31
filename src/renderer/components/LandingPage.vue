@@ -16,12 +16,14 @@
         <el-table-column prop="localPath" label="本地路径" />
         <el-table-column prop="remotePath" label="服务器器路径" />
         <el-table-column prop="command" label="打包命令" />
-        <el-table-column label="操作">
+        <el-table-column label="操作" width="210">
           <template #default="scope">
             <el-button link type="primary" size="small"
               @click="$router.push({ path: `/pack`, query: { id: scope.row.id } })">打包</el-button>
-            <el-button link type="primary" size="small" @click="handleEdit(scope.row.id)">编辑</el-button>
+            <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
             <el-button link type="danger" size="small" @click="delFn(scope.row.id)">删除</el-button>
+            <el-button link type="success" size="small"
+              @click="$router.push({ path: '/check', query: { localPath: scope.row.localPath } })">代码检查</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -81,7 +83,7 @@
         <el-descriptions :title="item.type == 0 ? '测试环境' : '正式环境'" border :key="index"
           v-for="(item, index) in sshInfoList">
           <template #extra>
-            <el-button type="primary" @click="editSSH(item.id)">修改</el-button>
+            <el-button type="primary" @click="editSSH(item)">修改</el-button>
             <el-button type="danger" @click="delSSH(item.id)">删除</el-button>
           </template>
           <el-descriptions-item label="跳板机">{{ item.host }}</el-descriptions-item>
@@ -138,12 +140,11 @@ const rules = reactive({
 })
 
 
-const handleEdit = (id) => {
-  hasProject(id, res => {
-    Object.assign(ruleForm, res)
-    dialogFormVisible.value = true
-  })
+const handleEdit = (res) => {
+  Object.assign(ruleForm, res)
+  dialogFormVisible.value = true
 }
+
 const getProjectList = () => {
   getProject(data => {
     tableData.value = data
@@ -154,11 +155,9 @@ const getSSHInfoList = () => {
     sshInfoList.value = [...data]
   })
 }
-const editSSH = (id) => {
-  hasSshInfo(id, res => {
-    Object.assign(sshForm, res);
-    dialogsshVisible.value = true;
-  })
+const editSSH = (res) => {
+  Object.assign(sshForm, res);
+  dialogsshVisible.value = true;
 }
 const delSSH = (id) => {
   deleteSSH(id);

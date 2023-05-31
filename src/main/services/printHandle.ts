@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { BrowserWindow, ipcMain, dialog } from "electron";
 import { notificationFn, clientSSH } from "@main/utils/index"
 import shell from 'shelljs';
 import archiver from 'archiver';
@@ -62,7 +62,7 @@ const startSSH = async ({ project, remoteConfig, mainWindow, type = 0 }) => {
       const webZip = `${remoteName}/${remoteName}.tar` // 线上地址
       conn.sftp((err, SFTP) => {
         SFTP.fastPut(zip, webZip, {}, (err, result) => {
-          //上传完成后开始解压
+          // 上传完成后开始解压
           if (err) {
             mainWindow.webContents.send('pipMsg', '上传失败，请重新上传')
             conn.end();
@@ -79,8 +79,43 @@ const startSSH = async ({ project, remoteConfig, mainWindow, type = 0 }) => {
 
 }
 
+const checkProjectFn = (currnetPath, mainWindow) => {
+  shell.exec('npm ls -g eslint', (err, stdout, stderr) => {
+    if (stdout.indexOf('empty') > -1) {
+      shell.exec('npm i eslint -g', { async: true });
+    }
+    const checkProcess = shell.exec(`eslint --ext .js,.vue ${currnetPath} -f html`, { async: true })
+    checkProcess.stdout.on('data', data => {
+      mainWindow.webContents.send('checkMsg', data);
+    })
+    // 打印错误的后台可执行程序输出
+    checkProcess.stderr.on('data', function (data) {
+      mainWindow.webContents.send('checkMsg', data)
+    })
+    checkProcess.on('close', (code) => {
+      mainWindow.webContents.send('checkDone');
+    })
+  });
+
+}
 
 export function usePrintHandle() {
+  ipcMain.handle('checkFile', (event, localpath) => {
+    let mainWindow = BrowserWindow.fromWebContents(event.sender)
+    dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], defaultPath: localpath }).then(res => {
+      let { filePaths, canceled } = res
+      if (canceled) return mainWindow.webContents.send('checkDone');
+      checkProjectFn(filePaths.join(' '), mainWindow)
+    })
+  })
+  // 代码检查 
+  ipcMain.handle('checkProject', (event, localpath) => {
+    let mainWindow = BrowserWindow.fromWebContents(event.sender)
+    if (localpath) {
+      checkProjectFn(`${localpath}/src`, mainWindow)
+    }
+  })
+  // 代码打包
   ipcMain.handle("pack", (event, res) => {
     let mainWindow = BrowserWindow.fromWebContents(event.sender)
     res = JSON.parse(res);
@@ -100,7 +135,7 @@ export function usePrintHandle() {
       buildFunc(res, mainWindow)
     })
   });
-
+  // 项目发布
   ipcMain.handle("public", async (event, project, ssh) => {
     let mainWindow = BrowserWindow.fromWebContents(event.sender)
     project = JSON.parse(project);
@@ -108,13 +143,13 @@ export function usePrintHandle() {
     let isNext = await startSSH({ project, remoteConfig, mainWindow })
     if (isNext) Shell({ mainWindow, project, remoteConfig })
   });
-
+  // 项目正式环境发布
   ipcMain.handle("publicProd", async (event, project, sshInfo) => {
     let mainWindow = BrowserWindow.fromWebContents(event.sender)
     project = JSON.parse(project);
     let sshInfoArr = Object.values(sshInfo)
     for (const remoteConfig of sshInfoArr) {
-      //   // type 0:测试环境 1：正式环境
+      // type 0:测试环境 1：正式环境
       await startSSH({ project, remoteConfig, mainWindow, type: 1 })
       await Shell({ mainWindow, project, remoteConfig, type: 1 })
     }
