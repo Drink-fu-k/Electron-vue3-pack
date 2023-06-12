@@ -1,10 +1,10 @@
 <template>
   <div class="print column pd_50">
-    <el-card>
+    <el-card body-style="max-height:70vh;overflow-y:auto">
       <el-backtop :right="60" :bottom="60" />
       <template #header>
         <div class="card-header flex-between">
-          <span>控制台输出</span>
+          <span>{{ projectName }}-控制台输出</span>
           <el-affix :offset="50">
             <el-button class="button" type="primary" :disabled="packDisabled" @click="packFn">打包</el-button>
             <el-button class="button" type="primary" :disabled="pubDisabled" @click="publishFn(0)">发布测试环境</el-button>
@@ -14,18 +14,19 @@
           </el-affix>
         </div>
       </template>
-      <el-timeline v-loading="loading" element-loading-background="rgba(255, 255, 255, 0.1)">
+      <el-timeline element-loading-background="rgba(255, 255, 255, 0.1)">
         <el-timeline-item v-for="(activity, index) in activities" :key="index" hide-timestamp>
           {{ activity }}
         </el-timeline-item>
+        <div class="loadingBox" />
       </el-timeline>
     </el-card>
   </div>
 </template>
 <script lang="ts" setup>
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox, ElLoading } from "element-plus";
 import { hasProject } from "@renderer/db/projectdb";
 import { getsshInfo } from "@renderer/db/sshdb";
 
@@ -37,11 +38,11 @@ const currentSSHINFO = reactive({})
 const packDisabled = ref(false);
 const pubDisabled = ref(true);
 const pubPrdDisabled = ref(true);
-const loading = ref(false);
-
+const loading = ref(null);
+const projectName = ref('')
 
 const publishFn = (val) => {
-  loading.value = true;
+  loading.value = ElLoading.service({ target: '.loadingBox', fullscreen: false });
   packDisabled.value = true;
   pubDisabled.value = true;
   let project = JSON.stringify(currentProject)
@@ -58,7 +59,8 @@ const publishFn = (val) => {
           let ssh = data.filter(item => item.type == 1) // 正式环境
           if (ssh.length < 2) {
             ElMessageBox.alert('请完善生产环境服务器信息');
-            [loading, packDisabled, pubDisabled].forEach(key => {
+            loading._value.close();
+            [packDisabled, pubDisabled].forEach(key => {
               key.value = false
             })
             return
@@ -68,7 +70,8 @@ const publishFn = (val) => {
           ipcRenderer.invoke('publicProd', project, sshInfo)
         })
       }).catch(() => {
-        [loading, packDisabled, pubDisabled].forEach(key => {
+        loading._value.close();
+        [packDisabled, pubDisabled].forEach(key => {
           key.value = false
         })
       })
@@ -81,14 +84,23 @@ const publishFn = (val) => {
 
 const packFn = () => {
   activities.value = []
-  loading.value = true;
+  loading.value = ElLoading.service({ target: '.loadingBox', fullscreen: false });;
   packDisabled.value = true;
   let project = JSON.stringify(currentProject)
   ipcRenderer.invoke('pack', project)
 }
 
+const scrollToBottom = () => {
+  nextTick(() => {
+    let scrollHeight = document.querySelector(".el-timeline").scrollHeight;
+    let container = document.querySelector('.el-card__body');
+    container.scrollTop = scrollHeight;
+  })
+}
+
 onMounted(async () => {
-  let id = router.currentRoute.value.query.id
+  let { id, name } = router.currentRoute.value.query
+  projectName.value = name;
   hasProject(Number(id), data => {
     Object.assign(currentProject, data)
   })
@@ -101,9 +113,10 @@ onMounted(async () => {
   })
   ipcRenderer.on('pipMsg', (e, msg) => {
     activities.value.push(msg);
+    scrollToBottom();
   })
   ipcRenderer.on('packMsg', (e, type) => {
-    loading.value = false;
+    loading._value.close();
     if (type) {
       packDisabled.value = false;
       pubDisabled.value = false;

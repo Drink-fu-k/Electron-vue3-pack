@@ -100,20 +100,16 @@ const checkProjectFn = (currnetPath, mainWindow) => {
 }
 
 export function usePrintHandle() {
-  ipcMain.handle('checkFile', (event, localpath) => {
+  ipcMain.handle('checkFile', (event, localpath, type) => {
     let mainWindow = BrowserWindow.fromWebContents(event.sender)
-    dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], defaultPath: localpath }).then(res => {
+    let properties = ['openFile', 'multiSelections']
+    type == 0 && properties.push('openDirectory')
+
+    dialog.showOpenDialog({ properties, defaultPath: localpath }).then(res => {
       let { filePaths, canceled } = res
       if (canceled) return mainWindow.webContents.send('checkDone');
       checkProjectFn(filePaths.join(' '), mainWindow)
     })
-  })
-  // 代码检查 
-  ipcMain.handle('checkProject', (event, localpath) => {
-    let mainWindow = BrowserWindow.fromWebContents(event.sender)
-    if (localpath) {
-      checkProjectFn(`${localpath}/src`, mainWindow)
-    }
   })
   // 代码打包
   ipcMain.handle("pack", (event, res) => {
@@ -131,8 +127,13 @@ export function usePrintHandle() {
 
     // 退出之后的输出
     workerProcess.on('close', async function (code) {
-      mainWindow.webContents.send('pipMsg', code == 0 ? '打包完成' : '打包失败')
-      buildFunc(res, mainWindow)
+      mainWindow.webContents.send('pipMsg', code === 0 ? '打包完成' : '打包失败')
+      if (code === 0) {
+        buildFunc(res, mainWindow)
+        return
+      }
+      mainWindow.webContents.send('packMsg', true)
+      notificationFn("提示", '打包失败');
     })
   });
   // 项目发布
@@ -154,4 +155,16 @@ export function usePrintHandle() {
       await Shell({ mainWindow, project, remoteConfig, type: 1 })
     }
   });
+  ipcMain.handle('runProject', (e, localPath) => {
+    let script = fs.readFileSync(`${localPath}/package.json`, 'utf-8')
+    script = JSON.parse(script)
+    let cmd = 'npm run dev';
+    for (const key in script) {
+      if (key === 'scripts') {
+        let obj = Object.keys(script[key]).find(item => ['dev', 'serve',].includes(item))
+        if (obj) cmd = `npm run ${obj}`
+      }
+    }
+    shell.exec(`start ${cmd}`, { cwd: localPath, async: true })
+  })
 }

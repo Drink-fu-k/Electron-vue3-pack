@@ -10,20 +10,30 @@
           </div>
         </div>
       </template>
-      <el-table :data="tableData">
-        <el-table-column prop="name" label="项目名" />
+      <el-table :data="tableData" height="300">
+        <el-table-column prop="name" label="项目名">
+          <template #default="scope">
+            <el-button type="text" style="white-space: break-spaces; text-align: left; height: auto;"
+              @click="runProject(scope.row.localPath)" title="运行项目">{{ scope.row.name }}</el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="remoteName" label="服务器文件名" />
-        <el-table-column prop="localPath" label="本地路径" />
+        <el-table-column label="本地路径">
+          <template #default="scope">
+            <el-button type="text" style="white-space: break-spaces; text-align: left; height: auto;"
+              @click="openFolder(scope.row.localPath)" title="打开项目">{{ scope.row.localPath }}</el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="remotePath" label="服务器器路径" />
         <el-table-column prop="command" label="打包命令" />
         <el-table-column label="操作" width="210">
           <template #default="scope">
             <el-button link type="primary" size="small"
-              @click="$router.push({ path: `/pack`, query: { id: scope.row.id } })">打包</el-button>
+              @click="$router.push({ path: `/pack`, query: { id: scope.row.id, name: scope.row.name } })">打包</el-button>
             <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
             <el-button link type="danger" size="small" @click="delFn(scope.row.id)">删除</el-button>
             <el-button link type="success" size="small"
-              @click="$router.push({ path: '/check', query: { localPath: scope.row.localPath } })">代码检查</el-button>
+              @click="$router.push({ path: '/check', query: { localPath: scope.row.localPath, name: scope.row.name } })">代码检查</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -139,6 +149,13 @@ const rules = reactive({
   port: [{ required: true, message: '请输入访问端口', trigger: 'blur' }],
 })
 
+const runProject = (localPath) => {
+  ipcRenderer.invoke('runProject', localPath)
+}
+
+const openFolder = (localPath) => {
+  shell.openPath(localPath)
+}
 
 const handleEdit = (res) => {
   Object.assign(ruleForm, res)
