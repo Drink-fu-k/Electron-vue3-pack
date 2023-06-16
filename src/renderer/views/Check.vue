@@ -1,6 +1,6 @@
 <template>
   <div class="print column pd_50">
-    <el-card v-loading="loading" body-style="max-height:70vh;overflow-y:auto">
+    <el-card body-style="max-height:70vh;overflow-y:auto">
       <el-backtop :right="60" :bottom="60" />
       <template #header>
         <div class="card-header flex-between">
@@ -13,7 +13,7 @@
           </el-affix>
         </div>
       </template>
-      <div v-html="html" class="width-full" />
+      <div v-loading="loading" v-html="html" class="width-full" />
     </el-card>
   </div>
 </template>
@@ -33,8 +33,8 @@ const checkFn = (type) => {
 }
 
 onMounted(async () => {
-  let { localPath, name } = router.currentRoute.value.query
-  localPath.value = localPath
+  let { localPathUrl, name } = router.currentRoute.value.query
+  localPath.value = localPathUrl
   projectName.value = name
   ipcRenderer.on('checkMsg', (e, data) => {
     html.value = data

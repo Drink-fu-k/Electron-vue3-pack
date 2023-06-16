@@ -10,7 +10,7 @@
           </div>
         </div>
       </template>
-      <el-table :data="tableData" height="300">
+      <el-table :data="tableData">
         <el-table-column prop="name" label="项目名">
           <template #default="scope">
             <el-button type="text" style="white-space: break-spaces; text-align: left; height: auto;"
@@ -33,7 +33,7 @@
             <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
             <el-button link type="danger" size="small" @click="delFn(scope.row.id)">删除</el-button>
             <el-button link type="success" size="small"
-              @click="$router.push({ path: '/check', query: { localPath: scope.row.localPath, name: scope.row.name } })">代码检查</el-button>
+              @click="$router.push({ path: '/check', query: { localPathUrl: scope.row.localPath, name: scope.row.name } })">代码检查</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -265,5 +265,6 @@ body {
 
 #wrapper {
   padding: 114px 80px;
+  overflow-y: auto;
 }
 </style>
